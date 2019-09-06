@@ -29,7 +29,7 @@ case "$2" in
         ;;
 esac
 
-RAMCMD="diskutil erasevolume HFS+ RAM \`$HDCMD\`"
+RAMCMD="diskutil eraseVolume HFS+ RAM \`$HDCMD\`"
 echo "$RAMCMD"
 echo
 
