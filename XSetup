@@ -1,9 +1,9 @@
 #!/bin/sh
 CDIR=$(cd "${0%/*}"; pwd)
 
-echo "$CDIR/bin" | sudo tee /etc/paths.d/tools.admin.diy
+echo "$CDIR/bin" | sudo tee /etc/paths.d/xtools.admin.mac
 
-sudo grep "admin ALL=(ALL) NOPASSWD: ALL" /etc/sudoers
+sudo grep "admin ALL=(ALL) NOPASSWD: ALL" /etc/sudoers >/dev/null 2>&1
 if [ $? = 1 ]; then
     echo "admin ALL=(ALL) NOPASSWD: ALL" | sudo tee -a /etc/sudoers
 fi
