@@ -1,0 +1,6 @@
+#!/bin/sh
+if [ ! -f ~/Sites/XFS.dmg.sparseimage ]; then
+	hdiutil create -type SPARSE -fs 'JHFS+X' -size 10g -volname XFS ~/Sites/XFS.dmg.sparseimage
+fi
+open ~/Sites/XFS.dmg.sparseimage
+
