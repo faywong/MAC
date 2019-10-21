@@ -73,14 +73,19 @@ REFILE()
 	fi
 }
 
-if [ -d "$1" ]; then
-	for FILE in `ls "$1"|tr " " "?"`
-	do
-		FILE=`echo $FILE|tr "?" " "`
-		REFILE "$1" "$FILE" "$2"
-	done
-elif [ -f "$1" ]; then
+if [ -f "$1" ]; then
 	REFILE "`dirname "$1"`" "`basename "$1"`" "$2"
-else
-	echo "$1: <DIR|FILE> [-|!]"
+	exit 0
 fi
+
+if [ -z "$1" ]; then
+	DIR="."
+else
+	DIR="$1"
+fi 
+
+for FILE in `ls "$DIR"|tr " " "?"`
+do
+	FILE=`echo $FILE|tr "?" " "`
+	REFILE "$1" "$FILE" "$2"
+done
