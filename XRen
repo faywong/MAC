@@ -87,5 +87,5 @@ fi
 for FILE in `ls "$DIR"|tr " " "?"`
 do
 	FILE=`echo $FILE|tr "?" " "`
-	REFILE "$1" "$FILE" "$2"
+	REFILE "$DIR" "$FILE" "$2"
 done
