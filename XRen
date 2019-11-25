@@ -40,7 +40,7 @@ REFILE()
 			NAME="`echo ${DATE:15:10} | tr : -` `echo ${DATE:26} | tr -d :`"
 		fi
 		RESULT="EXIF"
-	elif [[ "$EXT" = png ]] || [[ "$EXT" = gif ]] || [[ "$EXT" = mov ]] || [[ "$EXT" = mp4 ]] || [[ "$EXT" = avi ]]; then
+	elif [[ "$EXT" = png ]] || [[ "$EXT" = gif ]] || [[ "$EXT" = mov ]] || [[ "$EXT" = mp4 ]] || [[ "$EXT" = avi ]] || [[ "$EXT" = heic ]]; then
 		NAME=""
 	else
 		return 1
