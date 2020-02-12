@@ -30,5 +30,5 @@ chmod +x speedtest
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 brew update
 
-brew uinstall python3
+brew install scrcpy
 pip3 install esptool
