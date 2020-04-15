@@ -33,37 +33,26 @@ do
 			echo LINK\ "$DST_DIR/$NAME.app"
 			ln -s "$SRC_DIR/$ITEM" "$DST_DIR/$NAME.app"
 		else
-			#if [ "$ITEM" == "Utilities" ]; then
-			#	mkdir "$DST_DIR/$ITEM"
-			#	touch "$DST_DIR/$ITEM/.localized"
-			#fi
+			if [ "$ITEM" == "Utilities" ]; then
+				mkdir "$DST_DIR/$ITEM"
+				touch "$DST_DIR/$ITEM/.localized"
+			fi
 			APPS=`ls "$SRC_DIR/$ITEM"|tr " " "?"`
 			for APP in $APPS
 			do
 				APP=`echo $APP|tr "?" " "`
 				if [[ "$APP" =~ ".app" ]]; then
-					if [[ "$ITEM" =~ "Photoshop" ]]; then
+					if [[ "$APP" =~ "Photoshop" ]]; then
 						DST_APP="$DST_DIR/Adobe Photoshop.app"
 					else
-						DST_APP="$DST_DIR/$APP"
+						if [[ "$ITEM" == "Utilities" ]]; then PRE="Utilities/"
+						elif [[ "$ITEM" =~ ^[a-zA-Z0-9] ]]; then PRE=""
+						else PRE="$ITEM "
+						fi
+						DST_APP="$DST_DIR/$PRE$APP"
 					fi
 					echo LINK\ "$DST_APP"
 					ln -s "$SRC_DIR/$ITEM/$APP" "$DST_APP"
-				elif [ "$ITEM" == "Utilities" ]; then
-					UTILS=`ls "$SRC_DIR/$ITEM/$APP"|tr " " "?"`
-					for UTIL in $UTILS
-					do
-						UTIL=`echo $UTIL|tr "?" " "`
-						if [[ "$UTIL" =~ ".app" ]]; then
-							if [[ "$APP" == "设计" ]]; then
-								DST_UTIL="$DST_DIR/ $UTIL"
-							else
-								DST_UTIL="$DST_DIR/$APP $UTIL"
-							fi
-							echo LINK\ "$DST_UTIL"
-							ln -s "$SRC_DIR/$ITEM/$APP/$UTIL" "$DST_UTIL"
-						fi
-					done
 				fi
 			done
 		fi
