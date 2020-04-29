@@ -25,7 +25,7 @@ do
 	if [ -d "$SRC_DIR/$ITEM" ]; then
 		if [[ "$ITEM" =~ ".app" ]]; then
 			if [ "$ITEM" == "NeteaseMusic.app" ]; then NAME="Netease Music"
-			elif [ "$ITEM" == "百度云同步盘.app" ]; then NAME="Baidu Cloud"
+			elif [ "$ITEM" == "BaiduNetdisk_mac.app" ]; then NAME="Baidu Cloud"
 			elif [ "$ITEM" == "钉钉.app" ]; then NAME="Ding Talk"
 			elif [ "$ITEM" == "网易有道词典.app" ]; then NAME="Youdao Dict"
 			else NAME="${ITEM%*.app}"
@@ -45,7 +45,7 @@ do
 					if [[ "$APP" =~ "Photoshop" ]]; then
 						DST_APP="$DST_DIR/Adobe Photoshop.app"
 					else
-						if [[ "$ITEM" == "Utilities" ]]; then PRE="Utilities/"
+						if [[ "$ITEM" == "Utilities" ]]; then PRE="工具 "
 						elif [[ "$ITEM" =~ ^[a-zA-Z0-9] ]]; then PRE=""
 						else PRE="$ITEM "
 						fi
