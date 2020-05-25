@@ -67,3 +67,5 @@ defaults write com.apple.dt.Xcode IDECustomDistributionArchivesLocation $RAMDIR
 echo
 echo "Done, please reboot to take effect. Enjoy:)"
 echo
+echo '[ "`pwd`" = "$HOME" ] && cd /Volumes/RAM; clear'
+echo
