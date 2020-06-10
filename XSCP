@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if [ -z $1 ]; then HOST=admin@Linux; else HOST="$1"; fi
+if [ -z $2 ]; then FILE=/opt/rt-n56u/trunk/images/*.trx; else FILE="$2"; fi
+
+TRX=`ssh $HOST "ls $FILE"`
+if [ "${TRX:0:1}" = "/" ]; then
+    scp admin@linux:$TRX .
+else
+    echo "ERROR: $TRX"
+fi
