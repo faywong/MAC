@@ -9,6 +9,8 @@ if [ $? = 1 ]; then
 fi
 
 sudo spctl --master-disable
+#sudo mdutil -a -i off
+#sudo touch /Volumes/CARD/.metadata_never_index
 
 #defaults write com.apple.iTunes DeviceBackupsDisabled -bool YES
 defaults write com.apple.desktopservices DSDontWriteNetworkStores true
@@ -137,3 +139,4 @@ export FLUTTER_STORAGE_BASE_URL=https://storage.flutter-io.cn
 export PATH=$SITES/flutter/bin:$PATH
 EOF
 flutter doctor
+
