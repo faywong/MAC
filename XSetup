@@ -128,6 +128,8 @@ cat << \EOF > ~/Library/Application\ Support/Code/User/settings.json
 }
 EOF
 
+echo 'alias grs="git reset --hard"' >> ~/.zshrc
+
 # Flutter
 SITES=/Volumes/DAT/Sites
 mkdir $SITES
