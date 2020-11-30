@@ -1,0 +1,72 @@
+#!/bin/sh
+#PATH=$(cd "${0%/*}"; pwd):$PATH
+#CDIR="$(cd "${0%/*}"; pwd)"
+
+#GFWLIST_CONF=$CDIR/gfwlist.conf
+
+usage()
+{
+	echo "Usage: $0 <[start]|restart|stop|status|update>"
+	echo
+	echo "$0 <HOST> <PASS>"
+	echo
+	exit 0
+}
+
+update()
+{
+	curl -k -o $GFWLIST_CONF https://cokebar.github.io/gfwlist2dnsmasq/dnsmasq_gfwlist_ipset.conf || exit 1
+	#sed -i 's/#5353/#54/g' $GFWLIST_CONF
+}
+
+start()
+{
+	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$2\",\"remote_port\":443,\"password\":[\"$3\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
+	if [ $1 -ge 4 ]; then
+		nohup trojan -c /tmp/trojan.conf &> /tmp/trojan.log &
+	elif [ $1 -ge 2 ]; then
+		trojan -c /tmp/trojan.conf &
+	else
+		trojan -c /tmp/trojan.conf
+	fi
+}
+
+stop()
+{
+	killall trojan
+}
+
+status()
+{
+	tail -f /tmp/trojan.log
+}
+
+case "$1" in
+	start)
+		start 2 $2 $3
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		stop
+		start 2 $2 $3
+		;;
+	s|status)
+		status $2
+		;;
+	update)
+		update
+		;;
+	-v0|-v1|-v2|-v3|-v4|-v5)
+		start ${1:2} $2 $3 $4 $5
+		;;
+	-v)
+		start 1 $2 $3
+		;;
+	*)
+		start 5 $1 $2
+		;;
+esac
+
+
