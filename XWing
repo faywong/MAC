@@ -6,9 +6,9 @@
 
 usage()
 {
-	echo "Usage: $0 <[start]|restart|stop|status|update>"
+	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
 	echo
-	echo "$0 <HOST> <PASS>"
+	echo "$0 [-v[0-5]] <HOST> <PASS>"
 	echo
 	exit 0
 }
@@ -63,6 +63,9 @@ case "$1" in
 		;;
 	-v)
 		start 1 $2 $3
+		;;
+	-h|help)
+		usage
 		;;
 	*)
 		start 5 $1 $2
