@@ -2,7 +2,26 @@
 #PATH=$(cd "${0%/*}"; pwd):$PATH
 #CDIR="$(cd "${0%/*}"; pwd)"
 
-#GFWLIST_CONF=$CDIR/gfwlist.conf
+find_interface()
+{
+	sdev=`route get example.com 2> /dev/null | grep interface`
+	sdev=${sdev:13}
+	while read -r line; do
+		echo $line | grep $sdev > /dev/null 2>&1
+		if [ $? = 0 ]; then
+			currentservice=${last_line:4}
+			break
+		fi
+		last_line=$line
+	done <<< "$(networksetup -listnetworkserviceorder)"
+
+	if [ -z "$currentservice" ]; then
+	    >&2 echo "Could not find current service"
+	    exit 1
+	fi	
+
+	echo "Current interface: $currentservice"
+}
 
 usage()
 {
@@ -13,14 +32,11 @@ usage()
 	exit 0
 }
 
-update()
-{
-	curl -k -o $GFWLIST_CONF https://cokebar.github.io/gfwlist2dnsmasq/dnsmasq_gfwlist_ipset.conf || exit 1
-	#sed -i 's/#5353/#54/g' $GFWLIST_CONF
-}
-
 start()
 {
+	find_interface
+	networksetup -setsocksfirewallproxy $currentservice 127.0.0.1 1080
+
 	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$2\",\"remote_port\":443,\"password\":[\"$3\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
 	if [ $1 -ge 4 ]; then
 		nohup trojan -c /tmp/trojan.conf &> /tmp/trojan.log &
@@ -28,11 +44,15 @@ start()
 		trojan -c /tmp/trojan.conf &
 	else
 		trojan -c /tmp/trojan.conf
+		networksetup -setsocksfirewallproxystate $currentservice off
 	fi
 }
 
 stop()
 {
+	find_interface
+	networksetup -setsocksfirewallproxystate $currentservice off
+
 	killall trojan
 }
 
@@ -54,9 +74,6 @@ case "$1" in
 		;;
 	s|status)
 		status $2
-		;;
-	update)
-		update
 		;;
 	-v0|-v1|-v2|-v3|-v4|-v5)
 		start ${1:2} $2 $3 $4 $5
