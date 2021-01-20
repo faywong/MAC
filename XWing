@@ -2,6 +2,14 @@
 #TROJAN_HOST=
 #TROJAN_PASS=
 
+usage()
+{
+	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
+	echo
+	echo "$0 [-v[0-5]] <HOST> <PASS>"
+	echo
+}
+
 iface()
 {
 	sdev=`route get example.com 2> /dev/null | grep interface`
@@ -19,22 +27,12 @@ iface()
 		>&2 echo "Could not find current service"
 		exit 1
 	fi	
-
-	echo "Current interface: $IFACE"
-}
-
-usage()
-{
-	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
-	echo
-	echo "$0 [-v[0-5]] <HOST> <PASS>"
-	echo
-	exit 0
 }
 
 start()
 {
 	iface
+	echo 'export ALL_PROXY=socks5://127.0.0.1:1080'
 	networksetup -setsocksfirewallproxy $IFACE 127.0.0.1 1080
 
 	[ ! -z $2 ] && TROJAN_HOST=$2
