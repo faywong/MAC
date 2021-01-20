@@ -38,10 +38,8 @@ start()
 	[ ! -z $2 ] && TROJAN_HOST=$2
 	[ ! -z $3 ] && TROJAN_PASS=$3
 	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$TROJAN_HOST\",\"remote_port\":443,\"password\":[\"$TROJAN_PASS\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
-	if [ $1 -ge 4 ]; then
+	if [ $1 -ge 2 ]; then
 		nohup trojan -c /tmp/trojan.conf &> /tmp/trojan.log &
-	elif [ $1 -ge 2 ]; then
-		trojan -c /tmp/trojan.conf &
 	else
 		trojan -c /tmp/trojan.conf
 		networksetup -setsocksfirewallproxystate $IFACE off
@@ -61,6 +59,9 @@ status()
 }
 
 case "$1" in
+	-h|help)
+		usage
+		;;
 	start)
 		start 2 $2 $3
 		;;
@@ -72,19 +73,16 @@ case "$1" in
 		start 2 $2 $3
 		;;
 	s|status)
-		status $2
+		status
 		;;
 	-v0|-v1|-v2|-v3|-v4|-v5)
 		start ${1:2} $2 $3 $4 $5
 		;;
 	-v)
-		start 1 $2 $3
-		;;
-	-h|help)
-		usage
+		start 0 $2 $3
 		;;
 	*)
-		start 5 $1 $2
+		start 1 $1 $2
 		;;
 esac
 
