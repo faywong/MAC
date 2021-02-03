@@ -1,0 +1,8 @@
+#!/bin/sh
+#!/bin/sh
+if [ -z $1 ]; then
+	AVD=`~/Library/Android/sdk/emulator/emulator -list-avds | head -1`
+else
+	AVD="$1"
+fi
+~/Library/Android/sdk/emulator/emulator -avd $AVD
