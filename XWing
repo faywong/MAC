@@ -43,16 +43,25 @@ start()
 
 	if [ -z "$XWING_PASS" ]; then
 		SOCKS_HOST=$XWING_HOST
+		SOCKS_PORT=1080
+		SERVER_MODE=Socks5
+	elif [ "$XWING_PASS" -gt 0 ] 2>/dev/null && [ "$XWING_PASS" -lt 65535 ] 2>/dev/null; then
+		SOCKS_HOST=$XWING_HOST
+		SOCKS_PORT=$XWING_PASS
+		SERVER_MODE=Socks5
 	else
 		SOCKS_HOST=127.0.0.1
+		SOCKS_PORT=1080
+		SERVER_MODE=Trojan
 	fi
 
 	iface
 	echo "Local Network: $IFACE"
-	echo "Remote Server: $XWING_HOST"
-	echo "export ALL_PROXY=socks5://$SOCKS_HOST:1080"
-	networksetup -setsocksfirewallproxy $IFACE $SOCKS_HOST 1080
-	[ -z "$XWING_PASS" ] && return
+	echo "Remote $SERVER_MODE: $XWING_HOST"
+	echo "export ALL_PROXY=socks5://$SOCKS_HOST:$SOCKS_PORT"
+	networksetup -setsocksfirewallproxy $IFACE $SOCKS_HOST $SOCKS_PORT
+
+	[ "$SERVER_MODE" == "Socks5" ] && return
 
 	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$XWING_HOST\",\"remote_port\":443,\"password\":[\"$XWING_PASS\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
 	if [ $1 -ge 2 ]; then
