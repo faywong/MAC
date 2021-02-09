@@ -31,19 +31,25 @@ iface()
 
 start()
 {
-	iface
+	if [ ! -z $2 ]; then
+		XWING_HOST=$2
+		XWING_PASS=$3
+	fi
 
-	[ ! -z $2 ] && XWING_HOST=$2
-	[ -z "$XWING_HOST" ] && usage && return
+	if [ -z "$XWING_HOST" ]; then
+		usage
+		return
+	fi
 
-	[ ! -z $3 ] && XWING_PASS=$3
 	if [ -z "$XWING_PASS" ]; then
 		SOCKS_HOST=$XWING_HOST
 	else
 		SOCKS_HOST=127.0.0.1
 	fi
 
-	echo "Server: $XWING_HOST"
+	iface
+	echo "Local Network: $IFACE"
+	echo "Remote Server: $XWING_HOST"
 	echo "export ALL_PROXY=socks5://$SOCKS_HOST:1080"
 	networksetup -setsocksfirewallproxy $IFACE $SOCKS_HOST 1080
 	[ -z "$XWING_PASS" ] && return
