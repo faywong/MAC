@@ -1,6 +1,6 @@
 #!/bin/sh
-#TROJAN_HOST=
-#TROJAN_PASS=
+#XWING_HOST=
+#XWING_PASS=
 
 usage()
 {
@@ -32,12 +32,23 @@ iface()
 start()
 {
 	iface
-	echo 'export ALL_PROXY=socks5://127.0.0.1:1080'
-	networksetup -setsocksfirewallproxy $IFACE 127.0.0.1 1080
 
-	[ ! -z $2 ] && TROJAN_HOST=$2
-	[ ! -z $3 ] && TROJAN_PASS=$3
-	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$TROJAN_HOST\",\"remote_port\":443,\"password\":[\"$TROJAN_PASS\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
+	[ ! -z $2 ] && XWING_HOST=$2
+	[ -z "$XWING_HOST" ] && usage && return
+
+	[ ! -z $3 ] && XWING_PASS=$3
+	if [ -z "$XWING_PASS" ]; then
+		SOCKS_HOST=$XWING_HOST
+	else
+		SOCKS_HOST=127.0.0.1
+	fi
+
+	echo "Server: $XWING_HOST"
+	echo "export ALL_PROXY=socks5://$SOCKS_HOST:1080"
+	networksetup -setsocksfirewallproxy $IFACE $SOCKS_HOST 1080
+	[ -z "$XWING_PASS" ] && return
+
+	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$XWING_HOST\",\"remote_port\":443,\"password\":[\"$XWING_PASS\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
 	if [ $1 -ge 2 ]; then
 		nohup trojan -c /tmp/trojan.conf &> /tmp/trojan.log &
 	else
@@ -50,7 +61,10 @@ stop()
 {
 	iface
 	networksetup -setsocksfirewallproxystate $IFACE off
-	killall trojan
+	if [ -f /tmp/trojan.conf ]; then
+		rm /tmp/trojan.conf
+		killall trojan
+	fi
 }
 
 status()
