@@ -29,7 +29,15 @@ chmod +x speedtest
 /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 brew update
 
-brew install scrcpy
+brew install scrcpy python3
+
+# Python
+mkdir -p ~/.config/pip
+cat << \EOF > ~/.config/pip/pip.conf
+[global]
+index-url = https://mirrors.aliyun.com/pypi/simple/
+EOF
+
 pip3 install --user esptool
 
 
