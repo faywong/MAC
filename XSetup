@@ -20,6 +20,19 @@ defaults write com.apple.iTunes AutomaticDeviceBackupsDisabled -bool true
 
 exit
 
+cat << \EOF > ~/.zshrc
+export CLICOLOR=1
+export LSCOLORS=ExGxFxdaCxDaDahbadeche
+
+#autoload -U colors && colors
+#PROMPT="%{$fg_bold[cyan]%}%n%{$reset_color%}@%{$fg_bold[cyan]%}%m %{$fg_bold[green]%}%1~ %{$reset_color%}%#"
+
+alias gitreset="git reset --hard"
+
+export XWING_HOST=
+export XWING_PASS=
+EOF
+
 # Speed Test
 cd $CDIR
 curl -o speedtest https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py
