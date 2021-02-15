@@ -64,6 +64,8 @@ defaults write com.apple.dt.Xcode IDECustomDistributionArchivesLocation $RAMDIR
 #     ln -s /private/tmp ~/Library/Caches/Google
 # fi
 
+ln -s $RAMDIR ~/RAM
+
 echo
 echo "Done, please reboot to take effect. Enjoy:)"
 echo
