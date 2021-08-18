@@ -156,8 +156,11 @@ start()
 			split_str _USER _PASS : `decode_b64 $_USER`
 		fi
 		echo "{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"local_port\":1080,\"password\":\"$_PASS\",\"method\":\"$_USER\"}" > /tmp/ss.conf
-		#XCMD="ss-local -s $_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
-		local XCMD="ss-local -c /tmp/ss.conf"
+		if [ $1 -ge 2 ]; then
+			local XCMD="ss-local -c /tmp/ss.conf"
+		else
+			local XCMD="ss-local -v -s $_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
+		fi
 		local XURL=`make_url`
 	elif [ $_PROTO == ssr ]; then
 		if [ -z $_USER ]; then
@@ -175,6 +178,8 @@ start()
 		fi
 		echo "{\"password\":\"$_PASS\",\"method\":\"$_USER\",\"protocol\":\"$_PATH\",\"protocol_param\":\"$_protoparam\",\"obfs\":\"$_HASH\",\"obfs_param\":\"$_obfsparam\",\"client_settings\":{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"listen_address\":\"0.0.0.0\",\"listen_port\":1080}}" > /tmp/ssr.conf
 		local XCMD="ssr-client -c /tmp/ssr.conf"
+	elif [ $_PROTO == vmess ]; then
+		echo TODO!
 	else
 		return
 	fi
