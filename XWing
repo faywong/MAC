@@ -1,6 +1,14 @@
 #!/bin/sh
 
-str_cut()
+usage()
+{
+	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
+	echo
+	echo "$0 [-v[0-5]] <XWING_URL>"
+	echo
+}
+
+split_str()
 {
 	if [ -z "$4" ]; then
 		export $1=
@@ -17,33 +25,25 @@ str_cut()
 	fi
 }
 
-str_split()
+parse_query()
 {
-	local _PARAMS=(${3//$1/ })
-	for _PARAM in ${_PARAMS[@]}; do
-		str_cut KEY VAL $2 $_PARAM
+	local ITEMS=(${1//\&/ })
+	for ITEM in ${ITEMS[@]}; do
+		split_str KEY VAL = $ITEM
 		export _$KEY=$VAL
 		# echo "_$KEY=$VAL"
 	done
 }
 
-url_parse()
+parse_uri()
 {
-	str_cut _PROTO _PART : "$1" R
-	[[ $_PART == //* ]] && _PART=${_PART:2}
-	#echo PROTO=$_PROTO
-	uri_parse $_PART
-}
-
-uri_parse()
-{
-	str_cut _PART _HASH \# $1
-	str_cut _SERV_PATH _QUERY ? $_PART
-	str_split \& = $_QUERY
-	str_cut _SERV _PATH / $_SERV_PATH
-	str_cut _USER_PASS _HOST_PORT @ "$_SERV" R
-	str_cut  _USER _PASS : $_USER_PASS
-	str_cut _HOST _PORT : $_HOST_PORT
+	split_str _TEXT _HASH \# $1
+	split_str _SERV_PATH _QUERY ? $_TEXT
+	parse_query $_QUERY
+	split_str _SERV _PATH / $_SERV_PATH
+	split_str _USER_PASS _HOST_PORT @ "$_SERV" R
+	split_str  _USER _PASS : $_USER_PASS
+	split_str _HOST _PORT : $_HOST_PORT
 
 	# echo HASH=$_HASH
 	# echo SERV_PATH=$_SERV_PATH
@@ -55,47 +55,53 @@ uri_parse()
 	# echo PORT=$_PORT
 }
 
-base64_dec()
+parse_url()
 {
-	local _CNT=${#1}
-	local _REM=$(( $_CNT % 4 ))
-	if [ $_REM -eq 1 ]; then
-		local _TEXT=${1}===
-	elif [ $_REM -eq 2 ]; then
-		local _TEXT=${1}==
-	elif [ $_REM -eq 3 ]; then
-		local _TEXT=${1}=
+	split_str _PROTO _TEXT : "$1" R
+	[[ $_TEXT == //* ]] && _TEXT=${_TEXT:2}
+	#echo PROTO=$_PROTO
+	parse_uri $_TEXT
+}
+
+make_url()
+{
+	local URL="$_PROTO://$_USER:$_PASS@$_HOST:$_PORT"
+	[ ! -z $_PATH ] && URL="$URL/$_PATH"
+	[ ! -z $_QUERY ] && URL="$URL?$_QUERY"
+	[ ! -z $_HASH ] && URL="$URL#$_HASH"
+	echo $URL
+}
+
+decode_b64()
+{
+	local CNT=${#1}
+	local REM=$(( $CNT % 4 ))
+	if [ $REM -eq 1 ]; then
+		local TEXT=${1}===
+	elif [ $REM -eq 2 ]; then
+		local TEXT=${1}==
+	elif [ $REM -eq 3 ]; then
+		local TEXT=${1}=
 	else
-		local _TEXT=$1
+		local TEXT=$1
 	fi
-	echo $_TEXT | base64 -D
+	echo $TEXT | base64 -D
 }
 
-usage()
+find_net()
 {
-	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
-	echo
-	echo "$0 [-v[0-5]] <XWING_URL>"
-	echo
-}
-
-iface()
-{
-	sdev=`route get example.com 2> /dev/null | grep interface`
-	sdev=${sdev:13}
-	while read -r line; do
-		echo $line | grep $sdev > /dev/null 2>&1
+	local SDEV=`route get example.com 2> /dev/null | grep interface`
+	local SDEV=${SDEV:13}
+	while read -r LINE; do
+		echo $LINE | grep $SDEV > /dev/null 2>&1
 		if [ $? = 0 ]; then
-			IFACE=${last_line:4}
+			_NETWORK=${LAST_LINE:4}
 			break
 		fi
-		last_line=$line
+		LAST_LINE=$LINE
 	done <<< "$(networksetup -listnetworkserviceorder)"
 
-	if [ -z "$IFACE" ]; then
-		>&2 echo "Could not find current service"
-		exit 1
-	fi	
+	[ -z "$_NETWORK" ] && echo "Could not find network service" && exit 1
 }
 
 
@@ -110,68 +116,72 @@ start()
 		return
 	fi
 
-	iface
-	echo "Local Network: $IFACE"
+	find_net
+	echo "Local Network: $_NETWORK"
 
-	url_parse $XURL
+	parse_url $XURL
 
 	if [ $_PROTO == socks5 ]; then
 		PROXY_PROTO=$_PROTO
 		PROXY_HOST=$_HOST
 		PROXY_PORT=$_PORT
 	else
-		echo "Remote $XURL"
 		PROXY_PROTO=socks5
 		PROXY_HOST=127.0.0.1
 		PROXY_PORT=1080
 	fi
 
 	echo "export ALL_PROXY=$PROXY_PROTO://$PROXY_HOST:$PROXY_PORT"
-	networksetup -setsocksfirewallproxy $IFACE $PROXY_HOST $PROXY_PORT
+	networksetup -setsocksfirewallproxy $_NETWORK $PROXY_HOST $PROXY_PORT
 
 	[ -z $_PORT ] && _PORT=443
 	if [ $_PROTO == trojan ]; then
 		echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$_HOST\",\"remote_port\":443,\"password\":[\"$_USER\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
-		XCMD="trojan -c /tmp/trojan.conf"
+		local XCMD="trojan -c /tmp/trojan.conf"
 	elif [ $_PROTO == ss ]; then
 		if [ -z $_USER ]; then
-			uri_parse `base64_dec $_HOST`
+			parse_uri `decode_b64 $_HOST`
 		elif [ -z $_PASS ]; then
-			str_cut _USER _PASS : `base64_dec $_USER`
+			split_str _USER _PASS : `decode_b64 $_USER`
 		fi
-		XCMD="ss-local -s $_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
-		echo "$XCMD" > /tmp/ss.sh
+		echo "{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"local_port\":1080,\"password\":\"$_PASS\",\"method\":\"$_USER\"}" > /tmp/ss.conf
+		#XCMD="ss-local -s $_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
+		local XCMD="ss-local -c /tmp/ss.conf"
+		local XURL=`make_url`
 	elif [ $_PROTO == ssr ]; then
 		if [ -z $_USER ]; then
-			echo "==>"
-			uri_parse `base64_dec $_HOST`
-			local _ARGS=(${_PORT//:/ })
-			_PORT=${_ARGS[0]}
-			_PATH=${_ARGS[1]}
-			_USER=${_ARGS[2]}
-			_HASH=${_ARGS[3]}
-			_PASS=`base64_dec ${_ARGS[4]}`
-			_obfsparam=`base64_dec $_obfsparam`
-			_protoparam=`base64_dec $_protoparam`
+			parse_uri `decode_b64 $_HOST`
+			local ITEMS=(${_PORT//:/ })
+			_PORT=${ITEMS[0]}
+			_PATH=${ITEMS[1]}
+			_USER=${ITEMS[2]}
+			_HASH=${ITEMS[3]}
+			_PASS=`decode_b64 ${ITEMS[4]}`
+			_obfsparam=`decode_b64 $_obfsparam`
+			_protoparam=`decode_b64 $_protoparam`
+			_QUERY="protoparam=$_protoparam&obfsparam=$_obfsparam"
+			local XURL=`make_url`
 		fi
 		echo "{\"password\":\"$_PASS\",\"method\":\"$_USER\",\"protocol\":\"$_PATH\",\"protocol_param\":\"$_protoparam\",\"obfs\":\"$_HASH\",\"obfs_param\":\"$_obfsparam\",\"client_settings\":{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"listen_address\":\"0.0.0.0\",\"listen_port\":1080}}" > /tmp/ssr.conf
-		XCMD="ssr-client -c /tmp/ssr.conf"
+		local XCMD="ssr-client -c /tmp/ssr.conf"
 	else
 		return
 	fi
+
+	echo "export XWING_URL=$XURL\n"
 
 	if [ $1 -ge 2 ]; then
 		nohup "$XCMD" &> /tmp/xwing.log &
 	else
 		$XCMD
-		networksetup -setsocksfirewallproxystate $IFACE off
+		networksetup -setsocksfirewallproxystate $_NETWORK off
 	fi
 }
 
 stop()
 {
-	iface
-	networksetup -setsocksfirewallproxystate $IFACE off
+	find_net
+	networksetup -setsocksfirewallproxystate $_NETWORK off
 	if [ -f /tmp/trojan.conf ]; then
 		rm /tmp/trojan.conf
 		killall trojan
