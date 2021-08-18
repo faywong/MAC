@@ -16,12 +16,23 @@ split_str()
 	elif [[ "$4" =~ "$3" ]]; then
 		export $1=${4%%"$3"*}
 		export $2=${4#*"$3"}
-	elif [[ $5 == R ]]; then
-		export $1=
-		export $2="$4"
 	else
 		export $1="$4"
 		export $2=
+	fi
+}
+
+rsplit_str()
+{
+	if [ -z "$4" ]; then
+		export $1=
+		export $2=
+	elif [[ "$4" =~ "$3" ]]; then
+		export $1=${4%"$3"*}
+		export $2=${4##*"$3"}
+	else
+		export $1=
+		export $2="$4"
 	fi
 }
 
@@ -41,7 +52,7 @@ parse_uri()
 	split_str _SERV_PATH _QUERY ? $_TEXT
 	parse_query $_QUERY
 	split_str _SERV _PATH / $_SERV_PATH
-	split_str _USER_PASS _HOST_PORT @ "$_SERV" R
+	rsplit_str _USER_PASS _HOST_PORT @ $_SERV
 	split_str  _USER _PASS : $_USER_PASS
 	split_str _HOST _PORT : $_HOST_PORT
 
