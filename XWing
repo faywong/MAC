@@ -155,7 +155,7 @@ start()
 		elif [ -z $_PASS ]; then
 			split_str _USER _PASS : `decode_b64 $_USER`
 		fi
-		echo "{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"local_port\":1080,\"password\":\"$_PASS\",\"method\":\"$_USER\"}" > /tmp/ss.conf
+		echo "{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"local_address\":\"0.0.0.0\",\"local_port\":1080,\"password\":\"$_PASS\",\"method\":\"$_USER\"}" > /tmp/ss.conf
 		if [ $1 -ge 2 ]; then
 			local XCMD="ss-local -c /tmp/ss.conf"
 		else
