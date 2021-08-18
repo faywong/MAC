@@ -22,8 +22,8 @@ str_split()
 	local _PARAMS=(${3//$1/ })
 	for _PARAM in ${_PARAMS[@]}; do
 		str_cut KEY VAL $2 $_PARAM
-		export $KEY=$VAL
-		echo "  $KEY=$VAL"
+		export _$KEY=$VAL
+		# echo "_$KEY=$VAL"
 	done
 }
 
@@ -45,14 +45,30 @@ uri_parse()
 	str_cut  _USER _PASS : $_USER_PASS
 	str_cut _HOST _PORT : $_HOST_PORT
 
-	#echo HASH=$_HASH
-	#echo SERV_PATH=$_SERV_PATH
-	#echo QUERY=$_QUERY
-	#echo PATH=$_PATH
-	#echo USER=$_USER
-	#echo PASS=$_PASS
-	#echo HOST=$_HOST
-	#echo PORT=$_PORT	
+	# echo HASH=$_HASH
+	# echo SERV_PATH=$_SERV_PATH
+	# echo QUERY=$_QUERY
+	# echo PATH=$_PATH
+	# echo USER=$_USER
+	# echo PASS=$_PASS
+	# echo HOST=$_HOST
+	# echo PORT=$_PORT
+}
+
+base64_dec()
+{
+	local _CNT=${#1}
+	local _REM=$(( $_CNT % 4 ))
+	if [ $_REM -eq 1 ]; then
+		local _TEXT=${1}===
+	elif [ $_REM -eq 2 ]; then
+		local _TEXT=${1}==
+	elif [ $_REM -eq 3 ]; then
+		local _TEXT=${1}=
+	else
+		local _TEXT=$1
+	fi
+	echo $_TEXT | base64 -D
 }
 
 usage()
@@ -99,7 +115,7 @@ start()
 
 	url_parse $XURL
 
-	if [[ $_PROTO == socks5 || $_PROTO == http || $_PROTO == https ]]; then
+	if [ $_PROTO == socks5 ]; then
 		PROXY_PROTO=$_PROTO
 		PROXY_HOST=$_HOST
 		PROXY_PORT=$_PORT
@@ -110,27 +126,36 @@ start()
 		PROXY_PORT=1080
 	fi
 
-	if [ $_PROTO == http ]; then
-		PROXY_TYPE=web
-	elif [ $_PROTO == https ]; then
-		PROXY_TYPE=secureweb
-	else
-		PROXY_TYPE=socksfirewall
-	fi
-
 	echo "export ALL_PROXY=$PROXY_PROTO://$PROXY_HOST:$PROXY_PORT"
-	networksetup -set${PROXY_TYPE}proxy $IFACE $PROXY_HOST $PROXY_PORT
+	networksetup -setsocksfirewallproxy $IFACE $PROXY_HOST $PROXY_PORT
 
 	[ -z $_PORT ] && _PORT=443
 	if [ $_PROTO == trojan ]; then
+		echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$_HOST\",\"remote_port\":443,\"password\":[\"$_USER\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
 		XCMD="trojan -c /tmp/trojan.conf"
 	elif [ $_PROTO == ss ]; then
 		if [ -z $_USER ]; then
-			uri_parse `echo $_HOST | base64 -D`
+			uri_parse `base64_dec $_HOST`
 		elif [ -z $_PASS ]; then
-			str_cut _USER _PASS : `echo $_USER | base64 -D`
+			str_cut _USER _PASS : `base64_dec $_USER`
 		fi
-		XCMD="ss-local -s c$_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
+		XCMD="ss-local -s $_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
+		echo "$XCMD" > /tmp/ss.sh
+	elif [ $_PROTO == ssr ]; then
+		if [ -z $_USER ]; then
+			echo "==>"
+			uri_parse `base64_dec $_HOST`
+			local _ARGS=(${_PORT//:/ })
+			_PORT=${_ARGS[0]}
+			_PATH=${_ARGS[1]}
+			_USER=${_ARGS[2]}
+			_HASH=${_ARGS[3]}
+			_PASS=`base64_dec ${_ARGS[4]}`
+			_obfsparam=`base64_dec $_obfsparam`
+			_protoparam=`base64_dec $_protoparam`
+		fi
+		echo "{\"password\":\"$_PASS\",\"method\":\"$_USER\",\"protocol\":\"$_PATH\",\"protocol_param\":\"$_protoparam\",\"obfs\":\"$_HASH\",\"obfs_param\":\"$_obfsparam\",\"client_settings\":{\"server\":\"$_HOST\",\"server_port\":$_PORT,\"listen_address\":\"0.0.0.0\",\"listen_port\":1080}}" > /tmp/ssr.conf
+		XCMD="ssr-client -c /tmp/ssr.conf"
 	else
 		return
 	fi
@@ -139,8 +164,6 @@ start()
 		nohup "$XCMD" &> /tmp/xwing.log &
 	else
 		$XCMD
-		networksetup -setwebproxystate $IFACE off
-		networksetup -setsecurewebproxystate $IFACE off
 		networksetup -setsocksfirewallproxystate $IFACE off
 	fi
 }
@@ -148,12 +171,18 @@ start()
 stop()
 {
 	iface
-	networksetup -setwebproxystate $IFACE off
-	networksetup -setsecurewebproxystate $IFACE off
 	networksetup -setsocksfirewallproxystate $IFACE off
 	if [ -f /tmp/trojan.conf ]; then
 		rm /tmp/trojan.conf
 		killall trojan
+	fi
+	if [ -f /tmp/ssr.conf ]; then
+		rm /tmp/ssr.conf
+		killall ssr-client
+	fi
+	if [ -f /tmp/ss.sh ]; then
+		rm /tmp/ss.sh
+		killall ss-local
 	fi
 }
 
