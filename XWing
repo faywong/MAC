@@ -1,12 +1,65 @@
 #!/bin/sh
-#XWING_HOST=
-#XWING_PASS=
+
+str_cut()
+{
+	if [ -z "$4" ]; then
+		export $1=
+		export $2=
+	elif [[ "$4" =~ "$3" ]]; then
+		export $1=${4%%"$3"*}
+		export $2=${4#*"$3"}
+	elif [[ $5 == R ]]; then
+		export $1=
+		export $2="$4"
+	else
+		export $1="$4"
+		export $2=
+	fi
+}
+
+str_split()
+{
+	local _PARAMS=(${3//$1/ })
+	for _PARAM in ${_PARAMS[@]}; do
+		str_cut KEY VAL $2 $_PARAM
+		export $KEY=$VAL
+		echo "  $KEY=$VAL"
+	done
+}
+
+url_parse()
+{
+	str_cut _PROTO _PART : "$1" R
+	[[ $_PART == //* ]] && _PART=${_PART:2}
+	#echo PROTO=$_PROTO
+	uri_parse $_PART
+}
+
+uri_parse()
+{
+	str_cut _PART _HASH \# $1
+	str_cut _SERV_PATH _QUERY ? $_PART
+	str_split \& = $_QUERY
+	str_cut _SERV _PATH / $_SERV_PATH
+	str_cut _USER_PASS _HOST_PORT @ "$_SERV" R
+	str_cut  _USER _PASS : $_USER_PASS
+	str_cut _HOST _PORT : $_HOST_PORT
+
+	#echo HASH=$_HASH
+	#echo SERV_PATH=$_SERV_PATH
+	#echo QUERY=$_QUERY
+	#echo PATH=$_PATH
+	#echo USER=$_USER
+	#echo PASS=$_PASS
+	#echo HOST=$_HOST
+	#echo PORT=$_PORT	
+}
 
 usage()
 {
 	echo "Usage: $0 <[start]|restart|stop|status|update|help>"
 	echo
-	echo "$0 [-v[0-5]] <HOST> <PASS>"
+	echo "$0 [-v[0-5]] <XWING_URL>"
 	echo
 }
 
@@ -29,45 +82,65 @@ iface()
 	fi	
 }
 
+
 start()
 {
 	if [ ! -z $2 ]; then
-		XWING_HOST=$2
-		XWING_PASS=$3
-	fi
-
-	if [ -z "$XWING_HOST" ]; then
+		local XURL=$2
+	elif [ ! -z $XWING_URL ]; then
+		local XURL=$XWING_URL
+	else
 		usage
 		return
 	fi
 
-	if [ -z "$XWING_PASS" ]; then
-		SOCKS_HOST=$XWING_HOST
-		SOCKS_PORT=1080
-		SERVER_MODE=Socks5
-	elif [ "$XWING_PASS" -gt 0 ] 2>/dev/null && [ "$XWING_PASS" -lt 65535 ] 2>/dev/null; then
-		SOCKS_HOST=$XWING_HOST
-		SOCKS_PORT=$XWING_PASS
-		SERVER_MODE=Socks5
-	else
-		SOCKS_HOST=127.0.0.1
-		SOCKS_PORT=1080
-		SERVER_MODE=Trojan
-	fi
-
 	iface
 	echo "Local Network: $IFACE"
-	echo "Remote $SERVER_MODE: $XWING_HOST"
-	echo "export ALL_PROXY=socks5://$SOCKS_HOST:$SOCKS_PORT"
-	networksetup -setsocksfirewallproxy $IFACE $SOCKS_HOST $SOCKS_PORT
 
-	[ "$SERVER_MODE" == "Socks5" ] && return
+	url_parse $XURL
 
-	echo "{\"local_addr\":\"0.0.0.0\",\"local_port\":1080,\"remote_addr\":\"$XWING_HOST\",\"remote_port\":443,\"password\":[\"$XWING_PASS\"],\"log_level\":$1,\"ssl\":{\"verify\":false}}" > /tmp/trojan.conf
-	if [ $1 -ge 2 ]; then
-		nohup trojan -c /tmp/trojan.conf &> /tmp/trojan.log &
+	if [[ $_PROTO == socks5 || $_PROTO == http || $_PROTO == https ]]; then
+		PROXY_PROTO=$_PROTO
+		PROXY_HOST=$_HOST
+		PROXY_PORT=$_PORT
 	else
-		trojan -c /tmp/trojan.conf
+		echo "Remote $XURL"
+		PROXY_PROTO=socks5
+		PROXY_HOST=127.0.0.1
+		PROXY_PORT=1080
+	fi
+
+	if [ $_PROTO == http ]; then
+		PROXY_TYPE=web
+	elif [ $_PROTO == https ]; then
+		PROXY_TYPE=secureweb
+	else
+		PROXY_TYPE=socksfirewall
+	fi
+
+	echo "export ALL_PROXY=$PROXY_PROTO://$PROXY_HOST:$PROXY_PORT"
+	networksetup -set${PROXY_TYPE}proxy $IFACE $PROXY_HOST $PROXY_PORT
+
+	[ -z $_PORT ] && _PORT=443
+	if [ $_PROTO == trojan ]; then
+		XCMD="trojan -c /tmp/trojan.conf"
+	elif [ $_PROTO == ss ]; then
+		if [ -z $_USER ]; then
+			uri_parse `echo $_HOST | base64 -D`
+		elif [ -z $_PASS ]; then
+			str_cut _USER _PASS : `echo $_USER | base64 -D`
+		fi
+		XCMD="ss-local -s c$_HOST -p $_PORT -k $_PASS -l 1080 -m $_USER"
+	else
+		return
+	fi
+
+	if [ $1 -ge 2 ]; then
+		nohup "$XCMD" &> /tmp/xwing.log &
+	else
+		$XCMD
+		networksetup -setwebproxystate $IFACE off
+		networksetup -setsecurewebproxystate $IFACE off
 		networksetup -setsocksfirewallproxystate $IFACE off
 	fi
 }
@@ -75,6 +148,8 @@ start()
 stop()
 {
 	iface
+	networksetup -setwebproxystate $IFACE off
+	networksetup -setsecurewebproxystate $IFACE off
 	networksetup -setsocksfirewallproxystate $IFACE off
 	if [ -f /tmp/trojan.conf ]; then
 		rm /tmp/trojan.conf
@@ -84,7 +159,7 @@ stop()
 
 status()
 {
-	tail -f /tmp/trojan.log
+	tail -f /tmp/xwing.log
 }
 
 case "$1" in
@@ -92,27 +167,25 @@ case "$1" in
 		usage
 		;;
 	start)
-		start 2 $2 $3
+		start 2 $2
 		;;
 	stop)
 		stop
 		;;
 	restart)
 		stop
-		start 2 $2 $3
+		start 2 $2
 		;;
 	s|status)
 		status
 		;;
 	-v0|-v1|-v2|-v3|-v4|-v5)
-		start ${1:2} $2 $3 $4 $5
+		start ${1:2} $2
 		;;
 	-v)
-		start 0 $2 $3
+		start 0 $2
 		;;
 	*)
-		start 1 $1 $2
+		start 1 "$1"
 		;;
 esac
-
-
